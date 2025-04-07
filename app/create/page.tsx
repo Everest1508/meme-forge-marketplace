@@ -1,32 +1,53 @@
 "use client"
 
+import { useRef, useState } from "react"
+import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Download, Eraser, Undo } from "lucide-react"
-import dynamic from "next/dynamic"
-import { useRef, useState } from "react"
-
-const CanvasDraw = dynamic(() => import('react-canvas-draw'), {
-  ssr: false
-})
+import { Download, Eraser, Undo, Image as ImageIcon } from "lucide-react"
+import FabricCanvas from "@/components/fabric-canvas"
+import { Canvas, Image } from "fabric"
 
 export default function CreatePage() {
-  const canvasRef = useRef(null)
-  const [brushRadius, setBrushRadius] = useState(12)
+  const [brushRadius, setBrushRadius] = useState(5)
   const [brushColor, setBrushColor] = useState("#000000")
+  const canvasRef = useRef<Canvas | null>(null)
+
+  const initCanvas = (canvas: Canvas) => {
+    canvasRef.current = canvas
+  }
 
   const handleClear = () => {
     canvasRef.current?.clear()
   }
 
   const handleUndo = () => {
-    canvasRef.current?.undo()
+    const objects = canvasRef.current?.getObjects()
+    if (objects && objects.length > 0) {
+      canvasRef.current?.remove(objects[objects.length - 1])
+    }
   }
 
   const handleSave = () => {
-    const data = canvasRef.current?.getSaveData()
-    // TODO: Implement saving logic
+    const dataURL = canvasRef.current?.toDataURL({
+      format: "png",
+      quality: 1,
+      multiplier: 0
+    })
+    console.log("Exported Image URL:", dataURL)
+  }
+
+  const handleAddImage = () => {
+    const imageURL = prompt("Enter image URL to add:")
+    if (imageURL && canvasRef.current) {
+      Image.fromURL(imageURL, {}, (img: Image | undefined) => {
+        if (img) {
+          img.set({ left: 50, top: 50, scaleX: 0.5, scaleY: 0.5 })
+          canvasRef.current?.add(img)
+        }
+      })
+    }
   }
 
   return (
@@ -34,7 +55,7 @@ export default function CreatePage() {
       <div className="flex flex-col gap-6">
         <div className="flex flex-col sm:flex-row justify-between gap-4">
           <h1 className="text-3xl sm:text-4xl font-bold">Create NFT</h1>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button variant="outline" onClick={handleUndo}>
               <Undo className="mr-2 h-4 w-4" />
               Undo
@@ -42,6 +63,10 @@ export default function CreatePage() {
             <Button variant="outline" onClick={handleClear}>
               <Eraser className="mr-2 h-4 w-4" />
               Clear
+            </Button>
+            <Button variant="outline" onClick={handleAddImage}>
+              <ImageIcon className="mr-2 h-4 w-4" />
+              Add Image
             </Button>
             <Button onClick={handleSave}>
               <Download className="mr-2 h-4 w-4" />
@@ -58,15 +83,10 @@ export default function CreatePage() {
           <TabsContent value="draw">
             <Card className="p-4">
               <div className="w-full aspect-square bg-white rounded-lg overflow-hidden">
-                <CanvasDraw
-                  ref={canvasRef}
-                  brushRadius={brushRadius}
+                <FabricCanvas
                   brushColor={brushColor}
-                  canvasWidth="100%"
-                  canvasHeight="100%"
-                  className="w-full h-full"
-                  hideGrid
-                  lazyRadius={0}
+                  brushSize={brushRadius}
+                  ref={canvasRef}
                 />
               </div>
             </Card>
